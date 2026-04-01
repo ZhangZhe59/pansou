@@ -18,6 +18,15 @@ func SetupRouter(searchService *service.SearchService) *gin.Engine {
 	
 	// 创建默认路由
 	r := gin.Default()
+	r.GET("/", func(c *gin.Context) {
+	    c.JSON(200, gin.H{
+	        "name": "PanSou - 网盘资源搜索API",
+	        "endpoints": gin.H{
+	            "health": "/api/health",
+	            "search": "/api/search?wd=关键词",
+	        },
+	    })
+	})
 	
 	// 添加中间件
 	r.Use(CORSMiddleware())
