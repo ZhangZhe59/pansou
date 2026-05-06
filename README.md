@@ -13,13 +13,10 @@ PanSou是一个高性能的网盘资源搜索API服务，支持TG搜索和自定
 - **异步插件系统**：支持通过插件扩展搜索来源，支持"尽快响应，持续处理"的异步搜索模式，解决了某些搜索源响应时间长的问题。详情参考[**插件开发指南**](docs/插件开发指南.md)
 - **二级缓存**：分片内存+分片磁盘缓存机制，大幅提升重复查询速度和并发性能  
 
-## MCP 服务
-
-PanSou 还提供了一个基于 [Model Context Protocol (MCP)](https://modelcontextprotocol.io) 的服务，可以将搜索功能集成到 Claude Desktop 等支持 MCP 的应用中。详情请参阅 [MCP 服务文档](docs/MCP-SERVICE.md)。
 
 ## 支持的网盘类型
 
-百度网盘 (`baidu`)、阿里云盘 (`aliyun`)、夸克网盘 (`quark`)、天翼云盘 (`tianyi`)、UC网盘 (`uc`)、移动云盘 (`mobile`)、115网盘 (`115`)、PikPak (`pikpak`)、迅雷网盘 (`xunlei`)、123网盘 (`123`)、磁力链接 (`magnet`)、电驴链接 (`ed2k`)、其他 (`others`)
+百度网盘 (`baidu`)、阿里云盘 (`aliyun`)、夸克网盘 (`quark`)、光鸭云盘 (`guangya`)、天翼云盘 (`tianyi`)、UC网盘 (`uc`)、移动云盘 (`mobile`)、115网盘 (`115`)、PikPak (`pikpak`)、迅雷网盘 (`xunlei`)、123网盘 (`123`)、磁力链接 (`magnet`)、电驴链接 (`ed2k`)、其他 (`others`)
 
 ## 快速开始
 
@@ -398,7 +395,7 @@ curl -X POST http://localhost:8888/api/auth/logout
 | res | string | 否 | 结果类型：all(返回所有结果)、results(仅返回results)、merge(仅返回merged_by_type)，默认为merge |
 | src | string | 否 | 数据来源类型：all(默认，全部来源)、tg(仅Telegram)、plugin(仅插件) |
 | plugins | string[] | 否 | 指定搜索的插件列表，不指定则搜索全部插件 |
-| cloud_types | string[] | 否 | 指定返回的网盘类型列表，支持：baidu、aliyun、quark、tianyi、uc、mobile、115、pikpak、xunlei、123、magnet、ed2k，不指定则返回所有类型 |
+| cloud_types | string[] | 否 | 指定返回的网盘类型列表，支持：baidu、aliyun、quark、guangya、tianyi、uc、mobile、115、pikpak、xunlei、123、magnet、ed2k，不指定则返回所有类型 |
 | ext | object | 否 | 扩展参数，用于传递给插件的自定义参数，如{"title_en":"English Title", "is_all":true} |
 | filter | object | 否 | 过滤配置，用于过滤返回结果。格式：{"include":["关键词1","关键词2"],"exclude":["排除词1","排除词2"]}。include为包含关键词列表（OR关系），exclude为排除关键词列表（OR关系） |
 
@@ -413,7 +410,7 @@ curl -X POST http://localhost:8888/api/auth/logout
 | res | string | 否 | 结果类型：all(返回所有结果)、results(仅返回results)、merge(仅返回merged_by_type)，默认为merge |
 | src | string | 否 | 数据来源类型：all(默认，全部来源)、tg(仅Telegram)、plugin(仅插件) |
 | plugins | string | 否 | 指定搜索的插件列表，使用英文逗号分隔多个插件名，不指定则搜索全部插件 |
-| cloud_types | string | 否 | 指定返回的网盘类型列表，使用英文逗号分隔多个类型，支持：baidu、aliyun、quark、tianyi、uc、mobile、115、pikpak、xunlei、123、magnet、ed2k，不指定则返回所有类型 |
+| cloud_types | string | 否 | 指定返回的网盘类型列表，使用英文逗号分隔多个类型，支持：baidu、aliyun、quark、guangya、tianyi、uc、mobile、115、pikpak、xunlei、123、magnet、ed2k，不指定则返回所有类型 |
 | ext | string | 否 | JSON格式的扩展参数，用于传递给插件的自定义参数，如{"title_en":"English Title", "is_all":true} |
 | filter | string | 否 | JSON格式的过滤配置，用于过滤返回结果。格式：{"include":["关键词1","关键词2"],"exclude":["排除词1","排除词2"]} |
 
@@ -589,6 +586,135 @@ curl "http://localhost:8888/api/search?kw=唐朝诡事录&filter=%7B%22include%2
 {
   "error": "未授权：令牌无效或已过期",
   "code": "AUTH_TOKEN_INVALID"
+}
+```
+
+### 链接检测API
+
+检测指定网盘分享链接当前是否有效，适合前端结果页按需做可见项检测，也支持批量调试和服务端缓存复用。
+
+**接口地址**：`/api/check/links`  
+**请求方法**：`POST`  
+**Content-Type**：`application/json`  
+**是否需要认证**：取决于`AUTH_ENABLED`配置
+
+**请求参数**：
+
+| 参数名 | 类型 | 必填 | 描述 |
+|--------|------|------|------|
+| items | object[] | 是 | 待检测链接数组，至少提供一项 |
+| items[].disk_type | string | 是 | 网盘类型，支持：baidu、aliyun、quark、tianyi、uc、mobile、115、xunlei、123 |
+| items[].url | string | 是 | 完整分享链接 |
+| items[].password | string | 否 | 提取码/密码，未拼接在链接中时可传 |
+| view_token | string | 否 | 视图标识，用于区分当前前端检测批次 |
+
+**请求示例**：
+
+```bash
+# 未启用认证
+curl -X POST http://localhost:8888/api/check/links \
+  -H "Content-Type: application/json" \
+  -d '{
+    "items": [
+      {
+        "disk_type": "quark",
+        "url": "https://pan.quark.cn/s/abcdefg",
+        "password": "1234"
+      },
+      {
+        "disk_type": "xunlei",
+        "url": "https://pan.xunlei.com/s/abcdefg?pwd=1234"
+      },
+      {
+        "disk_type": "115",
+        "url": "https://115cdn.com/s/abcdefg?password=1234"
+      }
+    ],
+    "view_token": "quark-1710000000000"
+  }'
+
+# 启用认证时
+curl -X POST http://localhost:8888/api/check/links \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer eyJhbGc..." \
+  -d '{
+    "items": [
+      {
+        "disk_type": "baidu",
+        "url": "https://pan.baidu.com/s/1abcdef?pwd=1234"
+      }
+    ]
+  }'
+```
+
+**成功响应**：
+
+```json
+{
+  "results": [
+    {
+      "disk_type": "quark",
+      "url": "https://pan.quark.cn/s/abcdefg",
+      "normalized_url": "https://pan.quark.cn/s/abcdefg?pwd=1234",
+      "state": "ok",
+      "cache_hit": false,
+      "checked_at": 1710000000000,
+      "expires_at": 1710086400000,
+      "summary": "链接有效"
+    },
+    {
+      "disk_type": "xunlei",
+      "url": "https://pan.xunlei.com/s/abcdefg?pwd=1234",
+      "normalized_url": "https://pan.xunlei.com/s/abcdefg?pwd=1234",
+      "state": "bad",
+      "cache_hit": true,
+      "checked_at": 1710000100000,
+      "expires_at": 1710021700000,
+      "summary": "链接失效"
+    }
+  ]
+}
+```
+
+**状态说明**：
+
+- `ok`：链接有效
+- `bad`：链接失效
+- `locked`：需要提取码或密码错误
+- `unsupported`：当前平台暂不支持检测
+- `uncertain`：检测失败或结果不确定
+
+**字段说明**：
+
+- `results`: 检测结果数组
+- `results[].disk_type`: 网盘类型
+- `results[].url`: 原始传入链接
+- `results[].normalized_url`: 规范化后的链接
+- `results[].state`: 检测状态
+- `results[].cache_hit`: 是否命中服务端检测缓存
+- `results[].checked_at`: 最近一次检测时间戳（毫秒）
+- `results[].expires_at`: 当前缓存过期时间戳（毫秒）
+- `results[].summary`: 状态说明文本
+
+**错误响应**：
+
+```json
+// 请求参数无效
+{
+  "code": 400,
+  "message": "无效的检测请求: Key: 'CheckRequest.Items' Error:Field validation for 'Items' failed on the 'required' tag"
+}
+
+// items 为空
+{
+  "code": 400,
+  "message": "items不能为空"
+}
+
+// 未授权（启用认证但未提供Token）
+{
+  "error": "未授权：缺少认证令牌",
+  "code": "AUTH_TOKEN_MISSING"
 }
 ```
 
